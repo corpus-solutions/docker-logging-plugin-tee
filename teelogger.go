@@ -33,6 +33,7 @@ func (e *multipleError) Error() string {
 }
 
 func newTeeLogger(info logger.Info) (*teeLogger, error) {
+    log.Info("Called newTeeLogger from docker")
 	names, err := driverNames(info.Config)
 	if err != nil {
 		return nil, err

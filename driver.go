@@ -37,6 +37,7 @@ func (d *driver) startLogging(file string, info logger.Info) error {
 		}
 		info.LogPath = filepath.Join(logDir, info.ContainerID)
 	}
+    log.Infof("start logging for LogPath %s", info.LogPath)
 
 	l, err := newTeeLogger(info)
 	if err != nil {
@@ -91,6 +92,7 @@ func (d *driver) readLogs(ctx context.Context, info logger.Info, config logger.R
 }
 
 func (d *driver) capabilities() logger.Capability {
+     log.Infof("Plugin capabilities logger.Capability{ReadLogs: true}")
 	return logger.Capability{ReadLogs: true}
 }
 
