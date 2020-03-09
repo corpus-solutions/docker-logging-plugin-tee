@@ -8,6 +8,11 @@
 			"settable": ["value"]
 		}
 	],
+	"mounts" : [{
+			"source" : "/etc/docker",
+			"destination" : "/etc/docker"
+		}
+	],
 	"network": {
 		"type": "host"
 	},
