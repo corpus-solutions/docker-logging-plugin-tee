@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"bytes"
 	"errors"
 	"github.com/docker/docker/daemon/logger"
@@ -70,6 +71,8 @@ func newTeeLogger(info logger.Info) (*teeLogger, error) {
 
 func driverNames(config map[string]string) ([]string, error) {
 	if s, ok := config["tee-drivers"]; ok {
+		return strings.Split(s, ","), nil
+	} else if s, ok := os.LookupEnv("TEE-DRIVERS"); ok {
 		return strings.Split(s, ","), nil
 	}
 	return nil, errNoSuchDrivers

@@ -1,14 +1,18 @@
 {
-  "description": "A docker logging plugin that send logs to multiple log drivers",
-  "documentation": "https://github.com/buzztaiki/docker-logging-plugin-tee",
-  "entrypoint": ["/usr/bin/docker-logging-plugin-tee"],
-  "network": {
-    "type": "host"
-  },
-  "interface": {
-    "types": ["docker.logdriver/1.0"],
-    "socket": "tee.sock"
-  }
+	"description": "A docker logging plugin that send logs to multiple log drivers",
+	"documentation": "https://github.com/buzztaiki/docker-logging-plugin-tee",
+	"entrypoint": ["/usr/bin/docker-logging-plugin-tee"],
+	"env": [{
+			"name": "TEE-DRIVERS",
+			"description": "Upstream logging drivers",
+			"settable": ["value"]
+		}
+	],
+	"network": {
+		"type": "host"
+	},
+	"interface": {
+		"types": ["docker.logdriver/1.0"],
+		"socket": "tee.sock"
+	}
 }
-
-
