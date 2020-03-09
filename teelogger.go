@@ -6,6 +6,8 @@ import (
 	"errors"
 	"github.com/docker/docker/daemon/logger"
 	"strings"
+	"io/ioutil"
+	"encoding/json"
 )
 
 var (
@@ -54,8 +56,15 @@ func newTeeLogger(info logger.Info) (*teeLogger, error) {
 		}
 
 		newInfo := info
-		newInfo.Config = driverConfig(name, info.Config)
-		log.Infof("adding logger %s with config %v", name, newInfo.Config)
+		newConfig, err := driverConfig(name, info.Config)
+		if err != nil {
+			log.WithError(err).Errorf("could not create logger %s", name)
+			closeLoggers()
+			return nil, err
+		} else {
+			newInfo.Config = newConfig
+			log.Infof("adding logger %s with config %v", name, newInfo.Config)
+		}
 
 		l, err := creator(newInfo)
 		if err != nil {
@@ -78,7 +87,7 @@ func driverNames(config map[string]string) ([]string, error) {
 	return nil, errNoSuchDrivers
 }
 
-func driverConfig(driverName string, config map[string]string) map[string]string {
+func driverConfig(driverName string, config map[string]string) (map[string]string, error) {
 	newConfig := map[string]string{}
 	for k, v := range config {
 		ks := strings.SplitN(k, ":", 2)
@@ -87,8 +96,33 @@ func driverConfig(driverName string, config map[string]string) map[string]string
 		}
 		newConfig[ks[1]] = v
 	}
+	if fileExists("/etc/docker/tee.json") {
+	  content, err := ioutil.ReadFile("/etc/docker/tee.json")
+	  fileConfig := map[string]map[string]string{}
+	  if err != nil {
+        return nil, err
+      }
+	  if err := json.Unmarshal(content, &fileConfig); err != nil {
+        return nil, err
+	  }
+	  if val, ok := fileConfig[driverName]; ok {
+	    for k, v := range val {
+		  newConfig[k] = v
+		}
+	  }
+	}
 
-	return newConfig
+	return newConfig, nil
+}
+
+// fileExists checks if a file exists and is not a directory before we
+// try using it to prevent further errors.
+func fileExists(filename string) bool {
+    info, err := os.Stat(filename)
+    if os.IsNotExist(err) {
+        return false
+    }
+    return !info.IsDir()
 }
 
 func (l *teeLogger) Log(msg *logger.Message) error {

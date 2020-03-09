@@ -14,6 +14,7 @@ build:
 rootfs: build
 	docker build -q -t $(PLUGIN_NAME):rootfs .
 	mkdir -p ./plugin/rootfs
+	mkdir -p ./plugin/rootfs/etc/docker
 	docker create --name $(TMP_CONTAINER_NAME) $(PLUGIN_NAME):rootfs
 	docker export $(TMP_CONTAINER_NAME) | tar -x -C ./plugin/rootfs
 	cp config.json ./plugin/

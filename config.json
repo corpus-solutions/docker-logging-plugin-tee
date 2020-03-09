@@ -10,7 +10,9 @@
 	],
 	"mounts" : [{
 			"source" : "/etc/docker",
-			"destination" : "/etc/docker"
+			"destination" : "/etc/docker",
+			"type" : "bind",
+			"options": ["bind","ro"]
 		}
 	],
 	"network": {
