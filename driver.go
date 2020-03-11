@@ -9,6 +9,8 @@ import (
 	"sync"
 	"syscall"
 	"time"
+	"io/ioutil"
+	"encoding/json"
 
 	"github.com/containerd/fifo"
 	"github.com/docker/docker/api/types/plugins/logdriver"
@@ -27,6 +29,28 @@ func newDriver() *driver {
 		loggers: map[string]logger.Logger{},
 		cancels: map[string]context.CancelFunc{},
 	}
+}
+
+func (d *driver) reload() error {
+	fileConfig := map[string]map[string]string{}
+	if fileExists("/etc/docker/tee.json") {
+		content, err := ioutil.ReadFile("/etc/docker/tee.json")
+		if err != nil {
+		  return err
+		}
+		if err := json.Unmarshal(content, &fileConfig); err != nil {
+		  return err
+		}
+	}
+
+	for _, v := range d.loggers {
+		err := v.(ReloadableLogger).Reload(&fileConfig)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (d *driver) startLogging(file string, info logger.Info) error {

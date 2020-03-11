@@ -1,2 +1,4 @@
 /docker-logging-plugin-tee
 /plugin
+pkg
+.devcontainer

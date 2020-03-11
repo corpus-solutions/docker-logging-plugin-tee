@@ -14,13 +14,22 @@ var (
 	errNoSuchDrivers = errors.New("no such drivers")
 )
 
+type subLogger struct {
+	logger logger.Logger
+	info   logger.Info
+}
+
 type teeLogger struct {
-	loggers []logger.Logger
+	loggers map[string]subLogger
 }
 
 type multipleError struct {
 	message string
 	errs    []error
+}
+
+type ReloadableLogger interface {
+	Reload(*map[string]map[string]string) error
 }
 
 func newMultipleError(message string, errors []error) *multipleError {
@@ -35,16 +44,46 @@ func (e *multipleError) Error() string {
 	return buf.String()
 }
 
+func (l *teeLogger) Reload(config *map[string]map[string]string) error {
+	for name, l := range l.loggers {
+		if driverConf, ok := (*config)[name]; ok {
+			info := l.info
+			configurationChanged := false
+			for k, v := range driverConf {
+				if v != info.Config[k] {
+					info.Config[k] = v
+					configurationChanged = true
+				}
+			}
+			if configurationChanged {
+				log.Infof("Configuration for %s changed, reloading logger %s", name, info.ContainerName)
+				creator, err := logger.GetLogDriver(name)
+				if err != nil {
+					return err
+				}
+				newLogger, err := creator(info)
+				if err != nil {
+					return err
+				}
+				//switch to new logger
+				l.logger = newLogger
+			}
+		}
+	}
+	return nil
+}
+
 func newTeeLogger(info logger.Info) (*teeLogger, error) {
 	names, err := driverNames(info.Config)
 	if err != nil {
 		return nil, err
 	}
 
-	loggers := []logger.Logger{}
+	loggers := map[string]subLogger{}
+
 	closeLoggers := func() {
 		for _, l := range loggers {
-			l.Close()
+			l.logger.Close()
 		}
 	}
 
@@ -72,7 +111,7 @@ func newTeeLogger(info logger.Info) (*teeLogger, error) {
 			closeLoggers()
 			return nil, err
 		}
-		loggers = append(loggers, l)
+		loggers[name] = subLogger{l, newInfo}
 	}
 
 	return &teeLogger{loggers}, nil
@@ -131,7 +170,7 @@ func (l *teeLogger) Log(msg *logger.Message) error {
 		// copy message before logging to against resetting.
 		// see https://github.com/moby/moby/blob/e4cc3adf81cc0810a416e2b8ce8eb4971e17a3a3/daemon/logger/logger.go#L40
 		m := *msg
-		if err := lg.Log(&m); err != nil {
+		if err := lg.logger.Log(&m); err != nil {
 			errs = append(errs, err)
 		}
 		// get message from pool to reduce message pool size
@@ -152,7 +191,7 @@ func (l *teeLogger) Name() string {
 func (l *teeLogger) Close() error {
 	errs := []error{}
 	for _, lg := range l.loggers {
-		if err := lg.Close(); err != nil {
+		if err := lg.logger.Close(); err != nil {
 			errs = append(errs, err)
 		}
 	}
@@ -164,7 +203,7 @@ func (l *teeLogger) Close() error {
 
 func (l *teeLogger) ReadLogs(readConfig logger.ReadConfig) *logger.LogWatcher {
 	for _, lg := range l.loggers {
-		lr, ok := lg.(logger.LogReader)
+		lr, ok := lg.logger.(logger.LogReader)
 		if ok {
 			return lr.ReadLogs(readConfig)
 		}
