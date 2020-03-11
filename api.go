@@ -95,7 +95,7 @@ func (h *handler) readLogs(w http.ResponseWriter, r *http.Request) {
 		if req.Config.Follow {
 			defer stream.Close()
 			// Don't use sdk.StreamResponse for flushing.
-			w.Header().Set("Content-Type", sdk.DefaultContentTypeV1_1)
+			w.Header().Set("Content-Type", "application/x-json-stream")
 			io.Copy(ioutils.NewWriteFlusher(w), stream)
 		} else {
 			sdk.StreamResponse(w, stream)
